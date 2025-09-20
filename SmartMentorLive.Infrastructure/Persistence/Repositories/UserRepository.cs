@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using SmartMentorLive.Application.Interfaces;
+using SmartMentorLive.Application.Interfaces.Repositories;
 using SmartMentorLive.Domain.Entities.Users;
 using SmartMentorLive.Infrastructure.Persistence.Context;
 
