@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SmartMentorLive.Application.Features.Auth.Interfaces
+namespace SmartMentorLive.Application.Interfaces.Repositories
 {
     public interface IRoleRepository
     {

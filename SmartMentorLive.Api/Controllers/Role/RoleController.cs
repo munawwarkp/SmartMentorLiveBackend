@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace SmartMentorLive.Api.Controllers.Role
@@ -7,5 +8,16 @@ namespace SmartMentorLive.Api.Controllers.Role
     [ApiController]
     public class RoleController : ControllerBase
     {
+        private readonly IMediator _mediator;
+        public RoleController(IMediator mediator)
+        { 
+            _mediator = mediator;
+        }
+
+        [HttpPost]
+        public Task<IActionResult> AddRole()
+        {
+
+        }
     }
 }

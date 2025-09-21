@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using SmartMentorLive.Infrastructure.Entities;
 
-namespace SmartMentorLive.Application.Features.Auth.Interfaces
+namespace SmartMentorLive.Application.Interfaces.Repositories
 {
     public interface IRefreshTokenRepository
     {

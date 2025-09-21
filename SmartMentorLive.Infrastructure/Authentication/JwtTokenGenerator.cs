@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using SmartMentorLive.Application.Interfaces;
+using SmartMentorLive.Application.Interfaces.Services;
 using SmartMentorLive.Domain.Entities.Users;
 using SmartMentorLive.Infrastructure.Configuration;
 

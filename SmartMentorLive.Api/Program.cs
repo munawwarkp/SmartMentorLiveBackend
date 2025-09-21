@@ -8,12 +8,15 @@ using SmartMentorLive.Api.MIddleware;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using SmartMentorLive.Domain.Entities.Users;
-using SmartMentorLive.Application.Interfaces;
 using SmartMentorLive.Infrastructure.Authentication;
 using SmartMentorLive.Infrastructure.Persistence.Context;
 using FluentValidation;
 using SmartMentorLive.Application.Features.Auth.Commands.Login;
 using SmartMentorLive.Application.Features.Auth.Commands.Register;
+using SmartMentorLive.Application.Interfaces.Services;
+using SmartMentorLive.Application.Interfaces.Repositories;
+using SmartMentorLive.Infrastructure.Persistence.Repositories;
+using SmartMentorLive.Infrastructure.Services;
 
 namespace SmartMentorLive.Api
 {
@@ -79,10 +82,17 @@ namespace SmartMentorLive.Api
             builder.Services.AddValidatorsFromAssemblyContaining<LoginCommandValidator>();
             builder.Services.AddValidatorsFromAssemblyContaining<RegisterUserCommandValidator>();
 
+
         //register token genrator sevice
         builder.Services.AddScoped<IJwtTokenGenerator,JwtTokenGenerator>();
 
             builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+
+            builder.Services.AddScoped<IUserRepository,UserRepository>();
+            builder.Services.AddScoped<IRoleRepository,RoleRepository>();
+            builder.Services.AddScoped<IRefreshTokenRepository,RefreshTokenRepository>();
+            builder.Services.AddScoped<IAuthService, AuthService>();
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using SmartMentorLive.Application.Interfaces.Services;
+using SmartMentorLive.Application.Interfaces;
 using SmartMentorLive.Infrastructure.Persistence.Context;
 
 namespace SmartMentorLive.Infrastructure.Persistence.UOW

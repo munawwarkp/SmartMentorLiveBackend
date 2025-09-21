@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using SmartMentorLive.Domain.Entities.Users;
 
-namespace SmartMentorLive.Application.Interfaces
+namespace SmartMentorLive.Application.Interfaces.Repositories
 {
     public interface IUserRepository
     {
