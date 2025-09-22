@@ -17,6 +17,9 @@ using SmartMentorLive.Application.Interfaces.Services;
 using SmartMentorLive.Application.Interfaces.Repositories;
 using SmartMentorLive.Infrastructure.Persistence.Repositories;
 using SmartMentorLive.Infrastructure.Services;
+using SmartMentorLive.Infrastructure.Options;
+using Google.Apis.Util.Store;
+using SmartMentorLive.Infrastructure.Persistence.TokenStore;
 
 namespace SmartMentorLive.Api
 {
@@ -84,7 +87,7 @@ namespace SmartMentorLive.Api
 
 
         //register token genrator sevice
-        builder.Services.AddScoped<IJwtTokenGenerator,JwtTokenGenerator>();
+            builder.Services.AddScoped<IJwtTokenGenerator,JwtTokenGenerator>();
 
             builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 
@@ -92,6 +95,17 @@ namespace SmartMentorLive.Api
             builder.Services.AddScoped<IRoleRepository,RoleRepository>();
             builder.Services.AddScoped<IRefreshTokenRepository,RefreshTokenRepository>();
             builder.Services.AddScoped<IAuthService, AuthService>();
+
+
+            //email service
+
+            builder.Services.Configure<GmailOptions>(
+                builder.Configuration.GetSection("Gmail"));
+
+            builder.Services.AddScoped<ITokenManager,GmailTokenManager>();
+            builder.Services.AddScoped<IEmailService,GmailEmailService>();
+
+            builder.Services.AddScoped<IDataStore,DbTokenStore>();
 
             var app = builder.Build();
 

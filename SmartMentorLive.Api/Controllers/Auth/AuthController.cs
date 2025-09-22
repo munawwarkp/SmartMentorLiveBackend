@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SmartMentorLive.Application.Features.Auth.Commands.Login;
 using SmartMentorLive.Application.Features.Auth.Commands.Register;
+using SmartMentorLive.Application.Features.Email;
+using SmartMentorLive.Domain.Entities.Users;
 
 namespace SmartMentorLive.Api.Controllers.Auth
 {
@@ -19,8 +21,32 @@ namespace SmartMentorLive.Api.Controllers.Auth
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody]RegisterUserCommand command)
         {
-           var result = await _mediator.Send(command);
-            return Ok(result);
+            try
+            {
+                var result = await _mediator.Send(command);
+                await _mediator.Send(new SendWelcomeEmailCommand
+                {
+                    RecipientEmail = result.Email,
+                    Name = result.Name
+                });
+
+
+
+            }
+            catch (Exception ex)
+            {
+
+            }
+
+            if (result.Success) // or check null depending on your DTO
+            {
+                await _mediator.Send(new SendWelcomeEmailCommand
+                {
+                    RecipientEmail = result.Email,
+                    Name = result.Name
+                });
+            }
+
         }
 
         [HttpPost("login")]

@@ -14,10 +14,10 @@ namespace SmartMentorLive.Api.Controllers.Role
             _mediator = mediator;
         }
 
-        [HttpPost]
-        public Task<IActionResult> AddRole()
-        {
+        //[HttpPost]
+        //public Task<IActionResult> AddRole()
+        //{
 
-        }
+        //}
     }
 }
