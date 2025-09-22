@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using SmartMentorLive.Domain.Entities.admin;
 using SmartMentorLive.Domain.Entities.Industries;
 using SmartMentorLive.Domain.Entities.Notifications;
+using SmartMentorLive.Domain.Entities.Oauth;
 using SmartMentorLive.Domain.Entities.Sessions;
 using SmartMentorLive.Domain.Entities.Subscriptions;
 using SmartMentorLive.Domain.Entities.Users;
@@ -53,6 +54,9 @@ namespace SmartMentorLive.Infrastructure.Persistence.Context
 
 
         public DbSet<RefreshToken> RefreshTokens { get; set; }
+
+        //
+        public DbSet<OAuthToken> OAuthTokens { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -214,6 +218,11 @@ namespace SmartMentorLive.Infrastructure.Persistence.Context
             {
                 entity.Property(u => u.UserId).IsRequired();
             });
+
+            //Oauth
+            modelBuilder.Entity<OAuthToken>()
+                .HasIndex(t => t.UserEmail)
+                .IsUnique();
 
 
         }
