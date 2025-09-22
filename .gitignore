@@ -34,8 +34,9 @@ bld/
 [Ll]ogs/
 
 # Ignore appsettings files with secrets
-appsettings.Development.json
-appsettings.Local.json
+# Ignore local appsettings files with secrets
+SmartMentorLive.Api/appsettings.json
+SmartMentorLive.Api/appsettings.Development.json
 secrets.json
 *.secrets.json
 
