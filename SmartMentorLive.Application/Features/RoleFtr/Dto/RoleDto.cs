@@ -4,9 +4,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SmartMentorLive.Application.Features.Role.Dto
+namespace SmartMentorLive.Application.Features.RoleFtr.Dto
 {
-    internal class RoleDto
+    public class RoleDto
     {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
     }
 }

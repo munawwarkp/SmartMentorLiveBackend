@@ -1,5 +1,6 @@
 ﻿using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using SmartMentorLive.Application.Features.Auth.Commands.Login;
 using SmartMentorLive.Application.Features.Auth.Commands.Register;
@@ -21,32 +22,16 @@ namespace SmartMentorLive.Api.Controllers.Auth
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody]RegisterUserCommand command)
         {
-            try
+            var result = await _mediator.Send(command);
+
+            // Send welcome email – exceptions handled inside handler
+            await _mediator.Send(new SendWelcomeEmailCommand
             {
-                var result = await _mediator.Send(command);
-                await _mediator.Send(new SendWelcomeEmailCommand
-                {
-                    RecipientEmail = result.Email,
-                    Name = result.Name
-                });
+                RecipientEmail = result.Email,
+                Name = result.Name
+            });
 
-
-
-            }
-            catch (Exception ex)
-            {
-
-            }
-
-            if (result.Success) // or check null depending on your DTO
-            {
-                await _mediator.Send(new SendWelcomeEmailCommand
-                {
-                    RecipientEmail = result.Email,
-                    Name = result.Name
-                });
-            }
-
+            return Ok(result);
         }
 
         [HttpPost("login")]

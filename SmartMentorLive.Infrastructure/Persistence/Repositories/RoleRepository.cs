@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using SmartMentorLive.Application.Interfaces.Repositories;
+using SmartMentorLive.Domain.Entities.Users;
 using SmartMentorLive.Infrastructure.Persistence.Context;
 
 namespace SmartMentorLive.Infrastructure.Persistence.Repositories
@@ -17,7 +18,22 @@ namespace SmartMentorLive.Infrastructure.Persistence.Repositories
         {
             _context = context;
         }
-       public async Task<int> GetRoleIdByNameAsync(string roleName, CancellationToken cancellationToken)
+
+        public async Task<Role> AddAsync(Role role, CancellationToken cancellationToken)
+        {
+          
+             _context.Roles.Add(role);
+            await _context.SaveChangesAsync(cancellationToken);
+            return role;
+            
+        }
+
+        public async Task<List<Role>> GetAllRolesAsync(CancellationToken cancellationToken)
+        {
+           return await _context.Roles.ToListAsync(cancellationToken);
+        }
+
+        public async Task<int> GetRoleIdByNameAsync(string roleName, CancellationToken cancellationToken)
         {
             if(_roleCache == null)
             {

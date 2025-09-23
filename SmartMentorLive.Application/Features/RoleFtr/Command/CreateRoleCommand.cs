@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using MediatR;
+using SmartMentorLive.Application.Features.RoleFtr.Dto;
 
-namespace SmartMentorLive.Application.Features.Role.Command
+namespace SmartMentorLive.Application.Features.RoleFtr.Command
 {
-    internal class CreateRoleCommand
-    {
-    }
+    public record CreateRoleCommand(string Name) : IRequest<RoleDto>;
 }
