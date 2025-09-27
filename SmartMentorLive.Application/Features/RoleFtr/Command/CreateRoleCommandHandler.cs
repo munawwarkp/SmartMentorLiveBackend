@@ -21,6 +21,10 @@ namespace SmartMentorLive.Application.Features.RoleFtr.Command
         public async Task<RoleDto> Handle(CreateRoleCommand request, CancellationToken cancellationToken)
         {
             //check role exist ? tomorrow
+            if( await _roleRepository.ExistsByNameAsync(request.Name, cancellationToken))
+            {
+                throw new Exception("Role already exists");
+            }
 
             var role = new Role
             {

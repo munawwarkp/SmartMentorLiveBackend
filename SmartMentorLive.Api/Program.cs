@@ -53,10 +53,12 @@ namespace SmartMentorLive.Api
 
             var jwtSettings = jwtSettingSection.Get<JwtSettings>();
 
-            if(jwtSettings == null || string.IsNullOrWhiteSpace(jwtSettings.SecretKey))
+            if (!builder.Environment.IsEnvironment("DesignTime") &&
+                (jwtSettings == null || string.IsNullOrWhiteSpace(jwtSettings.SecretKey)))
             {
-                throw new InvalidOperationException("JWT settings are missing or invalid. Please check appsettings.json or user-secrets.");
+                throw new InvalidOperationException("JWT settings are missing or invalid.");
             }
+
 
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
@@ -123,6 +125,7 @@ namespace SmartMentorLive.Api
 
             app.UseMiddleware<GlobalExceptionHandler>();
 
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.MapControllers();

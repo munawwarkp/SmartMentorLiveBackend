@@ -2,8 +2,10 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using SmartMentorLive.Api.Contracts.Common;
 using SmartMentorLive.Application.Features.Auth.Commands.Login;
 using SmartMentorLive.Application.Features.Auth.Commands.Register;
+using SmartMentorLive.Application.Features.Auth.Dtos;
 using SmartMentorLive.Application.Features.Email;
 using SmartMentorLive.Domain.Entities.Users;
 
@@ -24,21 +26,14 @@ namespace SmartMentorLive.Api.Controllers.Auth
         {
             var result = await _mediator.Send(command);
 
-            // Send welcome email – exceptions handled inside handler
-            await _mediator.Send(new SendWelcomeEmailCommand
-            {
-                RecipientEmail = result.Email,
-                Name = result.Name
-            });
-
-            return Ok(result);
+            return Ok(ApiResponse<RegisterResultDto>.SuccessResponse(result,"Registration succesfull"));
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody]LoginCommand command)
         {
             var result = await _mediator.Send(command);
-            return Ok(result);
+            return Ok(ApiResponse<LoginResultDto>.SuccessResponse(result,"Login succesfull"));
         }
     }
 }

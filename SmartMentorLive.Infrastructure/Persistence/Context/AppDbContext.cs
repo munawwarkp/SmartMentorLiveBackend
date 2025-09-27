@@ -224,6 +224,13 @@ namespace SmartMentorLive.Infrastructure.Persistence.Context
                 .HasIndex(t => t.UserEmail)
                 .IsUnique();
 
+            //seeding role 
+            modelBuilder.Entity<Role>().HasData(
+                new Role { Id = 1, Name = "Student", IsRegistrable = true, CreatedAt = DateTime.UtcNow },
+                new Role { Id = 2, Name = "Mentor", IsRegistrable = true, CreatedAt = DateTime.UtcNow },
+                new Role { Id = 3, Name = "Admin", IsRegistrable = false, CreatedAt = DateTime.UtcNow }
+            );
+
 
         }
     }

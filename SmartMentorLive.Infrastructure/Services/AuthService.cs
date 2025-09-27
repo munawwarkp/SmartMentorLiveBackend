@@ -3,92 +3,112 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Transactions;
 using Azure.Core;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Identity.Client;
+using SmartMentorLive.Application.Event;
 using SmartMentorLive.Application.Features.Auth.Dtos;
 using SmartMentorLive.Application.Interfaces;
 using SmartMentorLive.Application.Interfaces.Repositories;
 using SmartMentorLive.Application.Interfaces.Services;
 using SmartMentorLive.Domain.Entities.Users;
 using SmartMentorLive.Infrastructure.Entities;
+using SmartMentorLive.Infrastructure.Persistence.Context;
+using SmartMentorLive.Infrastructure.Persistence.UOW;
 
 namespace SmartMentorLive.Infrastructure.Services
 {
     public class AuthService:IAuthService
     {
+        private readonly AppDbContext _context;
         private readonly IUserRepository _userRepository;
         private readonly IJwtTokenGenerator _jwtTokenGenerator;
         private readonly IPasswordHasher<User> _passwordHasher;
         private readonly IRefreshTokenRepository _refreshTokenRepository;
-        private readonly IUnitOfWork _unitOfWork;
         private readonly IRoleRepository _roleService;
-
+        private readonly IMediator _mediator;
+        private readonly IAuthUnitOfWork _unitOfWork;
 
         public AuthService(
             IUserRepository userRepository,
             IJwtTokenGenerator jwtTokenGenerator,
             IPasswordHasher<User> passwordHasher,
             IRefreshTokenRepository refreshTokenRepository,
-            IUnitOfWork unitOfWork,
-            IRoleRepository roleRepository)   
+            IRoleRepository roleRepository,
+            AppDbContext context,
+            IMediator mediator,
+            IAuthUnitOfWork unitOfWork)   
         {
+            _context = context;
             _userRepository = userRepository;
             _jwtTokenGenerator = jwtTokenGenerator;
             _passwordHasher = passwordHasher;
             _refreshTokenRepository = refreshTokenRepository;
-            _unitOfWork = unitOfWork;
             _roleService = roleRepository;
+            _mediator = mediator;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<RegisterResultDto> RegisterAsync(string name, string email, string password, string role, CancellationToken cancellationToken)
-        {
-            bool exists = await _userRepository.ExistsByEmailAsync(email);
-            if (exists)
-            {
+        {           
+
+            if (await _userRepository.ExistsByEmailAsync(email,cancellationToken))
                 throw new Exception("User already exists");
+
+            //get role and validate
+            var roleEntity = await _roleService.GetByNameAsync(role, cancellationToken);
+
+            if (roleEntity == null || !roleEntity.IsRegistrable)
+                throw new Exception("Invalid role specified");
+
+            //start transaction for multi entity operation
+
+            //await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+            await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                var user = new User
+                {
+                    Name = name,
+                    Email = email,
+                    RoleId = roleEntity.Id,
+                };
+                user.PasswordHash = _passwordHasher.HashPassword(user, password);
+
+
+                //assign profile based on role
+                if (roleEntity.Name.Equals("Student", StringComparison.OrdinalIgnoreCase))
+                    user.StudentProfile = new StudentProfile { User = user };
+                else if (roleEntity.Name.Equals("Mentor", StringComparison.OrdinalIgnoreCase))
+                    user.MentorProfile = new MentorProfile { User = user };
+
+                //track entity
+                await _userRepository.AddAsync(user, cancellationToken);
+
+                //commit changes
+                await _unitOfWork.SaveChangeAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+                //side effect ( welcom email )outside transaction
+                await _mediator.Publish(new UserRegisteredEvent(user.Id, user.Email, user.Name),cancellationToken);
+
+                return new RegisterResultDto
+                {
+                    UserId = user.Id,
+                    Name = user.Name,
+                    Email = user.Email,
+                    Role = role,
+                };
             }
-
-            //only allow student and mentor registration
-            if (!role.Equals("Student", StringComparison.OrdinalIgnoreCase) &&
-                !role.Equals("Mentor", StringComparison.OrdinalIgnoreCase))
+            catch (Exception ex)
             {
-                throw new Exception("Registration for this role is not allowed");
-            }
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }   
 
-            var roleId = await _roleService.GetRoleIdByNameAsync(role, cancellationToken);
-
-            var user = new User
-            {
-                Name = name,
-                Email = email,
-                RoleId = roleId
-            };
-            user.PasswordHash = _passwordHasher.HashPassword(user, password);
-
-            //  Assign profile based on role
-            if (role.Equals("Student", StringComparison.OrdinalIgnoreCase))
-            {
-                user.StudentProfile = new StudentProfile { User = user };
-            }
-            else if (role.Equals("Mentor", StringComparison.OrdinalIgnoreCase))
-            {
-                user.MentorProfile = new MentorProfile { User = user };
-            }
-
-            await _userRepository.AddAsync(user, cancellationToken);
-            await _unitOfWork.SaveChangeAsync(cancellationToken); //commit transaction
-
-            return new RegisterResultDto
-            {
-                UserId = user.Id,
-                Name = user.Name,
-                Email = user.Email,
-                Role = role,
-            };
         }
-
 
 
         public async Task<LoginResultDto> LoginAsync(string email, string password, CancellationToken cancellationToken)

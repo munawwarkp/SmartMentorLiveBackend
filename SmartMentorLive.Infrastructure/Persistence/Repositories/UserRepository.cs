@@ -20,18 +20,20 @@ namespace SmartMentorLive.Infrastructure.Persistence.Repositories
 
         public async Task<User?> GetEmailAsync(string email,CancellationToken cancellationToken)
         {
-            return await _context.Users.FirstOrDefaultAsync(u => u.Email == email,cancellationToken);
+            return await _context.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Email == email,cancellationToken);
         }
 
         public async Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken = default)
         {
-            bool res = await _context.Users
+            return await _context.Users
                 .AsNoTracking()
                 .AnyAsync(u => u.Email == email,cancellationToken);
-            return res;
         }
         public async Task AddAsync(User user, CancellationToken cancellationToken = default)
         {
+            // Only track entity; do not call SaveChanges here
             await _context.Users.AddAsync(user,cancellationToken);
         }
 
