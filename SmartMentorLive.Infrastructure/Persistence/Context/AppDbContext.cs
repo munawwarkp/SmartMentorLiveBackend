@@ -58,6 +58,8 @@ namespace SmartMentorLive.Infrastructure.Persistence.Context
         //
         public DbSet<OAuthToken> OAuthTokens { get; set; }
 
+        public DbSet<LoginHistory> LoginHistories { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

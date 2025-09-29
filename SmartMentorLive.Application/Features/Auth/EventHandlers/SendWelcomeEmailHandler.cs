@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 using SmartMentorLive.Application.Features.Auth.Event.Event;
 using SmartMentorLive.Application.Interfaces.Services;
 
-namespace SmartMentorLive.Application.Features.Email
+namespace SmartMentorLive.Application.Features.Auth.EventHandlers
 {
     public class SendWelcomeEmailHandler : INotificationHandler<UserRegisteredEvent>
     {

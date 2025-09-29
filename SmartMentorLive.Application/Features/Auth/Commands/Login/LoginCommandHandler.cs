@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using SmartMentorLive.Application.Features.Auth.Dtos;
+using SmartMentorLive.Application.Features.Auth.Events;
 using SmartMentorLive.Application.Features.Auth.Helpers;
 using SmartMentorLive.Application.Interfaces.Repositories;
 using SmartMentorLive.Application.Interfaces.Services;
@@ -23,7 +24,7 @@ namespace SmartMentorLive.Application.Features.Auth.Commands.Login
         private readonly IPasswordHasher<User> _passwordHasher;
         private readonly IRefreshTokenRepository _refreshTokenRepository;
         private readonly IMediator _mediator;
-        private readonly IAuthUnitOfWork _unitOfWork;
+        private readonly IUnitOfWork _unitOfWork;
 
         public LoginCommandHandler(
              IUserRepository userRepository,
@@ -31,7 +32,7 @@ namespace SmartMentorLive.Application.Features.Auth.Commands.Login
              IPasswordHasher<User> passwordHasher,
              IRefreshTokenRepository refreshTokenRepository,
              IMediator mediator,
-             IAuthUnitOfWork unitOfWork)
+             IUnitOfWork unitOfWork)
         {
              //_authService = authService;
              _userRepository = userRepository;
@@ -66,11 +67,34 @@ namespace SmartMentorLive.Application.Features.Auth.Commands.Login
                 ExpiresAtUtc = DateTime.UtcNow.AddDays(7),
             };
 
-            //save refreshtoken in db
-            await _refreshTokenRepository.AddAsync(refreshTokenEntity, cancellationToken);
+            //transaction not strictly needed, but for good practice
+            //used for refreshtoken and lastlogin for the same flow
 
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                //save refreshtoken in db
+                await _refreshTokenRepository.AddAsync(refreshTokenEntity, cancellationToken);
 
-            var res = new LoginResultDto
+                //update last login timestamp
+                user.LastLoginAt = DateTime.UtcNow;
+                _userRepository.Update(user, cancellationToken);
+
+                //commmit
+                await _unitOfWork.SaveChangeAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            }
+            catch(Exception ex)
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
+
+            //publish login event after db success
+            await _mediator.Publish(new UserLoggedInEvent(user.Id, DateTime.UtcNow), cancellationToken);
+
+            return new LoginResultDto
             {
                 UserId = user.Id,
                 Name = user.Name,
@@ -80,10 +104,8 @@ namespace SmartMentorLive.Application.Features.Auth.Commands.Login
                 RefreshToken = refreshToken,
             };
 
-            return res;
-
         }
 
-       
+
     }
 }

@@ -96,7 +96,6 @@ namespace SmartMentorLive.Api
             builder.Services.AddScoped<IUserRepository,UserRepository>();
             builder.Services.AddScoped<IRoleRepository,RoleRepository>();
             builder.Services.AddScoped<IRefreshTokenRepository,RefreshTokenRepository>();
-            builder.Services.AddScoped<IAuthService, AuthService>();
 
 
             //email service
@@ -108,6 +107,10 @@ namespace SmartMentorLive.Api
             builder.Services.AddScoped<IEmailService,GmailEmailService>();
 
             builder.Services.AddScoped<IDataStore,DbTokenStore>();
+
+
+
+            builder.Services.AddScoped<ILoginHistoryRepository, LoginHistoryRepository>();
 
             var app = builder.Build();
 

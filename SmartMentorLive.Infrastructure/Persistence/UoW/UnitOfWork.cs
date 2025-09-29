@@ -10,11 +10,11 @@ using SmartMentorLive.Infrastructure.Persistence.UOW;
 
 namespace SmartMentorLive.Infrastructure.Persistence.UoW
 {
-    public class AuthUnitOfWork:IAuthUnitOfWork
+    public class UnitOfWork:IUnitOfWork
     {
         private readonly AppDbContext _context;
         private IDbContextTransaction? transaction;    
-        public AuthUnitOfWork(AppDbContext context, IUserRepository users, IRoleRepository roles)
+        public UnitOfWork(AppDbContext context, IUserRepository users, IRoleRepository roles)
         {
             _context = context;
         }

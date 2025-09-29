@@ -9,8 +9,8 @@ using System.Xml.Linq;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using SmartMentorLive.Api.Models.Users.Responses;
-using SmartMentorLive.Application.Event;
 using SmartMentorLive.Application.Features.Auth.Dtos;
+using SmartMentorLive.Application.Features.Auth.Event.Event;
 using SmartMentorLive.Application.Interfaces;
 using SmartMentorLive.Application.Interfaces.Repositories;
 using SmartMentorLive.Application.Interfaces.Services;
@@ -24,14 +24,14 @@ namespace SmartMentorLive.Application.Features.Auth.Commands.Register
         //private readonly IAuthService _authService;
         private readonly IUserRepository _userRepository;
         private readonly IRoleRepository _roleRepository;
-        private readonly IAuthUnitOfWork _authUnitOfWork;
+        private readonly IUnitOfWork _authUnitOfWork;
         private readonly IPasswordHasher<User> _passwordHasher;
         private readonly IMediator _mediator;
 
         public RegisterUserCommandHandler(
             IUserRepository userRepository,
             IRoleRepository roleRepository,
-            IAuthUnitOfWork authUnitOfWork,
+            IUnitOfWork authUnitOfWork,
             IPasswordHasher<User> password,
             IMediator mediator)
         {

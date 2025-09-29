@@ -22,5 +22,8 @@ namespace SmartMentorLive.Domain.Entities.Users
         public StudentProfile? StudentProfile { get; set; }
         public MentorProfile? MentorProfile { get; set; }
 
+        //
+        public DateTime? LastLoginAt { get; set; }
+
     }
 }

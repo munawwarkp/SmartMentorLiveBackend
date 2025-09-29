@@ -37,5 +37,9 @@ namespace SmartMentorLive.Infrastructure.Persistence.Repositories
             await _context.Users.AddAsync(user,cancellationToken);
         }
 
+        public void Update(User user, CancellationToken cancellationToken)
+        {
+              _context.Users.Update(user);
+        }
     }
 }

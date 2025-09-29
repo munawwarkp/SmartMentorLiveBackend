@@ -7,7 +7,7 @@ using SmartMentorLive.Application.Interfaces.Repositories;
 
 namespace SmartMentorLive.Infrastructure.Persistence.UOW
 {
-    public interface IAuthUnitOfWork:IDisposable
+    public interface IUnitOfWork:IDisposable
     {
         Task<int> SaveChangeAsync(CancellationToken cancellationToken = default);
         Task BeginTransactionAsync(CancellationToken cancellationToken = default);

@@ -6,7 +6,6 @@ using SmartMentorLive.Api.Contracts.Common;
 using SmartMentorLive.Application.Features.Auth.Commands.Login;
 using SmartMentorLive.Application.Features.Auth.Commands.Register;
 using SmartMentorLive.Application.Features.Auth.Dtos;
-using SmartMentorLive.Application.Features.Email;
 using SmartMentorLive.Domain.Entities.Users;
 
 namespace SmartMentorLive.Api.Controllers.Auth

@@ -12,5 +12,6 @@ namespace SmartMentorLive.Application.Interfaces.Repositories
         Task<User?> GetEmailAsync(string email, CancellationToken cancellationToken=default);
         Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken=default);
         Task AddAsync(User user, CancellationToken cancellationToken=default);
+        void Update(User user, CancellationToken cancellationToken);
     }
 }
