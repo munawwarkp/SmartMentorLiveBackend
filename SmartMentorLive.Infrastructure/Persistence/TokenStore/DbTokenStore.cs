@@ -8,6 +8,7 @@ using Google.Apis.Util.Store;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
+using Org.BouncyCastle.Crypto.Parameters;
 using SmartMentorLive.Domain.Entities.Oauth;
 using SmartMentorLive.Infrastructure.Persistence.Context;
 
@@ -35,7 +36,14 @@ namespace SmartMentorLive.Infrastructure.Persistence.TokenStore
         public async Task StoreAsync<T>(string key, T value)
         {
             var json = JsonConvert.SerializeObject(value);
-            var encryptedToken = Encrypt(json, _encryptionKey);
+            var googleToken = JsonConvert.DeserializeObject<Google.Apis.Auth.OAuth2.Responses.TokenResponse>(json);
+            //var encryptedToken = Encrypt(json, _encryptionKey);
+
+            if (googleToken == null)
+                throw new InvalidOperationException("Invalid token response format");
+
+            var encryptedAccessToken = Encrypt(googleToken.AccessToken, _encryptionKey);
+            var encryptedRefreshToken = Encrypt(googleToken.RefreshToken, _encryptionKey);
 
             var existing = await _context.OAuthTokens
                 .FirstOrDefaultAsync(t => t.UserEmail == key);
@@ -44,15 +52,20 @@ namespace SmartMentorLive.Infrastructure.Persistence.TokenStore
             {
                 _context.OAuthTokens.Add(new OAuthToken
                 {
+                    Provider = "Gmail",
                     UserEmail = key,
-                    TokenJson = encryptedToken,
+                    AccessTokenEncrypted = encryptedAccessToken,
+                    RefreshTokenEncrypted = encryptedRefreshToken,
+                    ExpiryDate = googleToken.IssuedUtc.AddSeconds(googleToken.ExpiresInSeconds ?? 3600),
                     CreatedAt = DateTime.UtcNow,
                     LastModifiedDate = DateTime.UtcNow
                 });
             }
             else
             {
-                existing.TokenJson = encryptedToken;
+                existing.AccessTokenEncrypted = encryptedAccessToken;
+                existing.RefreshTokenEncrypted = encryptedRefreshToken;
+                existing.ExpiryDate = googleToken.IssuedUtc.AddSeconds(googleToken.ExpiresInSeconds ?? 3600);
                 existing.LastModifiedDate = DateTime.UtcNow;
             }
 
@@ -62,18 +75,35 @@ namespace SmartMentorLive.Infrastructure.Persistence.TokenStore
         public async Task<T?> GetAsync<T>(string key)
         {
             var token = await _context.OAuthTokens
-                .FirstOrDefaultAsync(t => t.UserEmail == key);
+                .FirstOrDefaultAsync(t => t.UserEmail == key && t.Provider == "Gmail");
 
             if (token == null) return default;
 
-            var json = Decrypt(token.TokenJson, _encryptionKey); // decrypt first
+            var accessToken = Decrypt(token.AccessTokenEncrypted, _encryptionKey);
+            var refreshToken = Decrypt(token.RefreshTokenEncrypted, _encryptionKey);
+
+            var remaining = (long)(token.ExpiryDate - DateTime.UtcNow).TotalSeconds;
+
+
+            var tokenResponse = new Google.Apis.Auth.OAuth2.Responses.TokenResponse
+            {
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                IssuedUtc = token.ExpiryDate.AddSeconds(-3600), // original issue time
+                ExpiresInSeconds = remaining > 0 ? remaining : 0
+            };
+
+            var json = JsonConvert.SerializeObject(tokenResponse);
             return JsonConvert.DeserializeObject<T>(json);
+
+            //var json = Decrypt(token.AccessToken, _encryptionKey); // decrypt first
+            //return JsonConvert.DeserializeObject<T>(json);
         }
 
         public async Task DeleteAsync<T>(string key)
         {
             var token = await _context.OAuthTokens
-                .FirstOrDefaultAsync(t => t.UserEmail == key);
+                .FirstOrDefaultAsync(t => t.UserEmail == key && t.Provider == "Gmail");
 
             if (token != null)
             {

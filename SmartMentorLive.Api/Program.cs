@@ -20,6 +20,8 @@ using SmartMentorLive.Infrastructure.Services;
 using SmartMentorLive.Infrastructure.Options;
 using Google.Apis.Util.Store;
 using SmartMentorLive.Infrastructure.Persistence.TokenStore;
+using System.Reflection.PortableExecutable;
+using System.Runtime.ConstrainedExecution;
 
 namespace SmartMentorLive.Api
 {
@@ -46,11 +48,15 @@ namespace SmartMentorLive.Api
             });
 
             //jwt
+            //load user secret
+            if (builder.Environment.IsDevelopment())
+            {
+                builder.Configuration.AddUserSecrets<Program>();
+            }
 
             //bind JwtSetting class to jwt object in appsettings
-            var jwtSettingSection = builder.Configuration.GetSection("Jwt");
+            var jwtSettingSection = builder.Configuration.GetSection("JwtSettings");
             builder.Services.Configure<JwtSettings>(jwtSettingSection);   //register settings in DI
-
             var jwtSettings = jwtSettingSection.Get<JwtSettings>();
 
             if (!builder.Environment.IsEnvironment("DesignTime") &&
@@ -69,8 +75,8 @@ namespace SmartMentorLive.Api
                         ValidateAudience = true,
                         ValidateLifetime = true,
                         ValidateIssuerSigningKey = true,
-                        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-                        ValidAudience = builder.Configuration["Jwt:Audience"],
+                        ValidIssuer = jwtSettings.Issuer,
+                        ValidAudience = jwtSettings.Audience,
                         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SecretKey))
                     };
                 });

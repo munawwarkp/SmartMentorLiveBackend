@@ -228,9 +228,9 @@ namespace SmartMentorLive.Infrastructure.Persistence.Context
 
             //seeding role 
             modelBuilder.Entity<Role>().HasData(
-                new Role { Id = 1, Name = "Student", IsRegistrable = true, CreatedAt = DateTime.UtcNow },
-                new Role { Id = 2, Name = "Mentor", IsRegistrable = true, CreatedAt = DateTime.UtcNow },
-                new Role { Id = 3, Name = "Admin", IsRegistrable = false, CreatedAt = DateTime.UtcNow }
+                new Role { Id = 1, Name = "Student", IsRegistrable = true, CreatedAt = new DateTime(2025, 10, 3, 0, 0, 0, DateTimeKind.Utc) },
+                new Role { Id = 2, Name = "Mentor", IsRegistrable = true, CreatedAt = new DateTime(2025, 10, 3, 0, 0, 0, DateTimeKind.Utc) },
+                new Role { Id = 3, Name = "Admin", IsRegistrable = false, CreatedAt = new DateTime(2025, 10, 3, 0, 0, 0, DateTimeKind.Utc)  }
             );
 
 

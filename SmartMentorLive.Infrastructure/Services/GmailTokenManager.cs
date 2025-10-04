@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Google.Apis.Auth.OAuth2;
+using Google.Apis.Auth.OAuth2.Flows;
 using Google.Apis.Util;
 using Google.Apis.Util.Store;
 using Microsoft.Extensions.Options;
@@ -14,6 +15,7 @@ using SmartMentorLive.Infrastructure.Persistence.Repositories;
 
 namespace SmartMentorLive.Infrastructure.Services
 {
+    //responsible for managing Gmail OAuth2 tokens
     public class GmailTokenManager:ITokenManager
     {
         private readonly GmailOptions _options;
@@ -28,25 +30,26 @@ namespace SmartMentorLive.Infrastructure.Services
 
         public async Task<string> GetAccessTokenAsync()
         {
+            //app credentials
             var secrets = new ClientSecrets
             {
                 ClientId = _options.ClientId,
                 ClientSecret = _options.ClientSecret,
             };
 
-            var credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
-                secrets,
-                new[] { "https://mail.google.com/" },
-                _options.UserEmail,
-                CancellationToken.None,
-                _tokenStore
-                //new FileDataStore("GmailTokenStore", true)
-            );
-
-            if (credential.Token.IsStale)
+            var flow = new GoogleAuthorizationCodeFlow(new GoogleAuthorizationCodeFlow.Initializer
             {
+                ClientSecrets = secrets,
+                Scopes = new[] { "https://mail.google.com/" },
+                DataStore = _tokenStore // your DbTokenStore
+            });
+
+            // UserCredential linked to your flow and email
+            var credential = new UserCredential(flow, _options.UserEmail, null);
+
+            // Refresh token automatically if stale
+            if (credential.Token.IsStale)
                 await credential.RefreshTokenAsync(CancellationToken.None);
-            }
 
             return await credential.GetAccessTokenForRequestAsync();
         }

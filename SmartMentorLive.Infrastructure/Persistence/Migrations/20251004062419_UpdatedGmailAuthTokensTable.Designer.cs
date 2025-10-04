@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SmartMentorLive.Infrastructure.Persistence.Context;
 
@@ -11,9 +12,11 @@ using SmartMentorLive.Infrastructure.Persistence.Context;
 namespace SmartMentorLive.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251004062419_UpdatedGmailAuthTokensTable")]
+    partial class UpdatedGmailAuthTokensTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -149,7 +152,7 @@ namespace SmartMentorLive.Infrastructure.Migrations
                     b.ToTable("Notifications");
                 });
 
-            modelBuilder.Entity("SmartMentorLive.Domain.Entities.Oauth.OAuthToken", b =>
+            modelBuilder.Entity("SmartMentorLive.Domain.Entities.Oauth.GmailOAuthToken", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -157,7 +160,7 @@ namespace SmartMentorLive.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("AccessTokenEncrypted")
+                    b.Property<string>("AccessToken")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -176,11 +179,7 @@ namespace SmartMentorLive.Infrastructure.Migrations
                     b.Property<DateTime?>("LastModifiedDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("Provider")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("RefreshTokenEncrypted")
+                    b.Property<string>("RefreshToken")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -193,7 +192,7 @@ namespace SmartMentorLive.Infrastructure.Migrations
                     b.HasIndex("UserEmail")
                         .IsUnique();
 
-                    b.ToTable("OAuthTokens");
+                    b.ToTable("GmailOAuthTokens");
                 });
 
             modelBuilder.Entity("SmartMentorLive.Domain.Entities.Sessions.GroupSession", b =>

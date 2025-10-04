@@ -34,5 +34,7 @@ namespace SmartMentorLive.Api.Controllers.Auth
             var result = await _mediator.Send(command);
             return Ok(ApiResponse<LoginResultDto>.SuccessResponse(result,"Login succesfull"));
         }
+
+
     }
 }
