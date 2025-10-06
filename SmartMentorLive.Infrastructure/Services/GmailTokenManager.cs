@@ -40,7 +40,7 @@ namespace SmartMentorLive.Infrastructure.Services
             var flow = new GoogleAuthorizationCodeFlow(new GoogleAuthorizationCodeFlow.Initializer
             {
                 ClientSecrets = secrets,
-                Scopes = new[] { "https://mail.google.com/" },
+                Scopes = new[] { "https://www.googleapis.com/auth/gmail.send" },
                 DataStore = _tokenStore // your DbTokenStore
             });
 
