@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Auth.OAuth2.Flows;
+using Google.Apis.Auth.OAuth2.Responses;
 using Google.Apis.Util;
 using Google.Apis.Util.Store;
 using Microsoft.Extensions.Options;
@@ -44,8 +45,15 @@ namespace SmartMentorLive.Infrastructure.Services
                 DataStore = _tokenStore // your DbTokenStore
             });
 
+
+            // Load existing token
+            var token = await _tokenStore.GetAsync<TokenResponse>(_options.UserEmail);
+            if (token == null)
+                throw new InvalidOperationException("No Gmail OAuth token found. Run the initial authorization flow.");
+
+
             // UserCredential linked to your flow and email
-            var credential = new UserCredential(flow, _options.UserEmail, null);
+            var credential = new UserCredential(flow, _options.UserEmail, token);
 
             // Refresh token automatically if stale
             if (credential.Token.IsStale)

@@ -32,6 +32,9 @@ namespace SmartMentorLive.Infrastructure.Services
         {
             var accessToken = await _tokenManager.GetAccessTokenAsync();
 
+            if (string.IsNullOrEmpty(accessToken))
+                throw new InvalidOperationException("Unable to get Gmail access token.");
+
             var message = new MimeMessage();
             message.From.Add(new MailboxAddress("Smart Mentor",_settings.UserEmail));
             message.To.Add(new MailboxAddress("", to));
@@ -41,7 +44,7 @@ namespace SmartMentorLive.Infrastructure.Services
             //create SMTP client
 
             using var client = new SmtpClient();
-            await client.ConnectAsync("smtp.gmail.com", 587, SecureSocketOptions.StartTls);
+            await client.ConnectAsync(_settings.Host, _settings.Port, SecureSocketOptions.StartTls);
             await client.AuthenticateAsync(new SaslMechanismOAuth2(_settings.UserEmail, accessToken));
             await client.SendAsync(message);
             await client.DisconnectAsync(true);

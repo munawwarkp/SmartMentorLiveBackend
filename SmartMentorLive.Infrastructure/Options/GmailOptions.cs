@@ -11,5 +11,8 @@ namespace SmartMentorLive.Infrastructure.Options
         public string ClientId { get; set; }
         public string ClientSecret { get; set; }
         public string UserEmail { get; set; }
+        public string RedirectUri { get; set; }
+        public string Host { get; set; }
+        public int Port { get; set; }
     }
 }
