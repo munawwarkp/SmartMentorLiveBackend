@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using SmartMentorLive.Infrastructure.Configuration;
 using SmartMentorLive.Api.MIddleware;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
@@ -22,6 +21,8 @@ using Google.Apis.Util.Store;
 using SmartMentorLive.Infrastructure.Persistence.TokenStore;
 using System.Reflection.PortableExecutable;
 using System.Runtime.ConstrainedExecution;
+using System.Net;
+using StackExchange.Redis;
 
 namespace SmartMentorLive.Api
 {
@@ -38,17 +39,77 @@ namespace SmartMentorLive.Api
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
+            // Add CORS services
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAll", policy =>
+                {
+                    policy.SetIsOriginAllowed(origin => true) // More permissive than AllowAnyOrigin()
+                          .AllowAnyHeader()
+                          .AllowAnyMethod()
+                          .AllowCredentials()
+                          .WithExposedHeaders("*"); // Expose all headers
+                });
+            });
+
+
+            //DB
             //read connection string from configuaration
             var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
             //register infrastructure db context
             builder.Services.AddDbContext<AppDbContext>(options =>
             {
                 options.UseSqlServer(connectionString);
             });
 
-            //jwt
-            //load user secret
+
+            //redis
+            var redisSection = builder.Configuration.GetSection("Redis");
+            builder.Services.Configure<RedisSettings>(redisSection);
+
+            var redisSettings = redisSection.Get<RedisSettings>();
+
+            if (redisSettings == null)
+            {
+                throw new InvalidOperationException("Redis settings are missing or invalid in appSettings.json.");
+            }
+
+            //validate redis settngs
+            if (string.IsNullOrWhiteSpace(redisSettings.Endpoint))
+                throw new InvalidOperationException("Redis endpoint is not configured");
+
+            // Configure IDistributedCache with StackExchangeRedisCache
+            builder.Services.AddStackExchangeRedisCache(options =>
+            {
+                options.ConfigurationOptions = new StackExchange.Redis.ConfigurationOptions
+                {
+                    EndPoints = { redisSettings.Endpoint },
+                    Password = redisSettings.Password,
+                    Ssl = redisSettings.Ssl,
+                    AbortOnConnectFail = false,
+                    ConnectTimeout = 10000, // Add timeout
+                    SyncTimeout = 5000      // Add sync timeout
+                };
+                options.InstanceName = redisSettings.InstanceName;
+            });
+
+            // ALSO register a single ConnectionMultiplexer for direct Redis usage (e.g. RedisOAuthStateService)
+            // This avoids creating connections per-request and is industry best-practice.
+            //var configurationOptions = new StackExchange.Redis.ConfigurationOptions
+            //{
+            //    EndPoints = { redisSettings.Endpoint },
+            //    Password = redisSettings.Password,
+            //    Ssl = redisSettings.Ssl,
+            //    AbortOnConnectFail = false,
+            //    ConnectRetry = 3,
+            //    ConnectTimeout = 10000,
+            //    SyncTimeout = 5000
+            //};
+            //var mux = ConnectionMultiplexer.Connect(configurationOptions);
+            //builder.Services.AddSingleton<IConnectionMultiplexer>(mux);
+
+
+            //jwt config
             if (builder.Environment.IsDevelopment())
             {
                 builder.Configuration.AddUserSecrets<Program>();
@@ -81,31 +142,27 @@ namespace SmartMentorLive.Api
                     };
                 });
 
-            //add mediatR
+            //mediatR
             builder.Services.AddMediatR(cfg => 
                 cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
 
 
             //register middleware
             builder.Services.AddTransient<GlobalExceptionHandler>();
-
             //register validatoro
             builder.Services.AddValidatorsFromAssemblyContaining<LoginCommandValidator>();
             builder.Services.AddValidatorsFromAssemblyContaining<RegisterUserCommandValidator>();
 
 
-        //register token genrator sevice
+            //register token genrator sevice
             builder.Services.AddScoped<IJwtTokenGenerator,JwtTokenGenerator>();
-
             builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
-
             builder.Services.AddScoped<IUserRepository,UserRepository>();
             builder.Services.AddScoped<IRoleRepository,RoleRepository>();
             builder.Services.AddScoped<IRefreshTokenRepository,RefreshTokenRepository>();
 
 
             //email service
-
             builder.Services.Configure<GmailOptions>(
                 builder.Configuration.GetSection("Gmail"));
 
@@ -114,9 +171,17 @@ namespace SmartMentorLive.Api
 
             builder.Services.AddScoped<IDataStore,DbTokenStore>();
 
+            //register redis based OAuth state service
+            // State service: implement RedisOAuthStateService to accept IConnectionMultiplexer or IDistributedCache.
+            // If your implementation uses IConnectionMultiplexer directly, it's fine to register it as Scoped or Singleton.
+            // We'll keep it Scoped if it uses scoped dependencies; but if it only uses the singleton IConnectionMultiplexer, you can register it as Singleton.
+            builder.Services.AddScoped<IOAuthStateService, RedisOAuthStateService>();
 
+            // GoogleAuthService depends on IDataStore (scoped) so it must be Scoped
+            builder.Services.AddScoped<IGoogleAuthService, GoogleAuthService>();
 
             builder.Services.AddScoped<ILoginHistoryRepository, LoginHistoryRepository>();
+
 
             var app = builder.Build();
 
@@ -131,7 +196,8 @@ namespace SmartMentorLive.Api
             }
 
             app.UseHttpsRedirection();
-
+            app.UseCors("AllowAll");
+            
             app.UseMiddleware<GlobalExceptionHandler>();
 
             app.UseAuthentication();

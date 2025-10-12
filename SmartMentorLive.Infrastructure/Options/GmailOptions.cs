@@ -14,5 +14,7 @@ namespace SmartMentorLive.Infrastructure.Options
         public string RedirectUri { get; set; }
         public string Host { get; set; }
         public int Port { get; set; }
+
+        public string[] Scopes { get; set; } = Array.Empty<string>();
     }
 }

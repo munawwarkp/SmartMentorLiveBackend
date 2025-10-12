@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SmartMentorLive.Infrastructure.Configuration
+namespace SmartMentorLive.Infrastructure.Options
 {
     public class JwtSettings
     {

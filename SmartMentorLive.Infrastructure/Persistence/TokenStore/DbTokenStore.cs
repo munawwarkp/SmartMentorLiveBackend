@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Google.Apis.Util.Store;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Org.BouncyCastle.Crypto.Parameters;
 using SmartMentorLive.Domain.Entities.Oauth;
@@ -18,10 +19,12 @@ namespace SmartMentorLive.Infrastructure.Persistence.TokenStore
     {
         private readonly AppDbContext _context;
         private readonly byte[] _encryptionKey;
+        private readonly ILogger<DbTokenStore> _logger;
 
-        public DbTokenStore(AppDbContext appDbContext, IConfiguration configuration)
+        public DbTokenStore(AppDbContext appDbContext, IConfiguration configuration, ILogger<DbTokenStore> logger)
         {
             _context = appDbContext;
+            _logger = logger;
 
             var keyBase64 = configuration["AES:Key"]; // store base64 key in secrets/env
             if (string.IsNullOrWhiteSpace(keyBase64))
@@ -35,18 +38,54 @@ namespace SmartMentorLive.Infrastructure.Persistence.TokenStore
 
         public async Task StoreAsync<T>(string key, T value)
         {
+            _logger.LogInformation("Storing token for key: {Key}", key);
+
+            if (string.IsNullOrEmpty(key))
+                throw new ArgumentException("Key cannot be null or empty", nameof(key));
+
+            if (value == null)
+                throw new ArgumentNullException(nameof(value), "Cannot store null token");
+
+            //validate and parse token
             var json = JsonConvert.SerializeObject(value);
             var googleToken = JsonConvert.DeserializeObject<Google.Apis.Auth.OAuth2.Responses.TokenResponse>(json);
             //var encryptedToken = Encrypt(json, _encryptionKey);
 
+            // DEBUG: Log token details
+            _logger.LogInformation("Token details - AccessToken: {HasAccess}, RefreshToken: {HasRefresh}, Issued: {Issued}",
+                !string.IsNullOrEmpty(googleToken?.AccessToken),
+                !string.IsNullOrEmpty(googleToken?.RefreshToken),
+                googleToken?.IssuedUtc);
+
             if (googleToken == null)
                 throw new InvalidOperationException("Invalid token response format");
 
+            if (string.IsNullOrEmpty(googleToken.AccessToken))
+                throw new InvalidOperationException("Access token is missing in the token response(google response)");
+
+            if (googleToken.IssuedUtc == null || googleToken.ExpiresInSeconds == null)
+                throw new InvalidOperationException("Token issue time or expiry is missing in the token response");
+
+            var expiredIn = googleToken.ExpiresInSeconds ?? 3600;
+            var expiryDate = googleToken.IssuedUtc.AddSeconds(expiredIn);
+
+            //encrypt token
             var encryptedAccessToken = Encrypt(googleToken.AccessToken, _encryptionKey);
-            var encryptedRefreshToken = Encrypt(googleToken.RefreshToken, _encryptionKey);
+            // Refresh token might be null on subsequent auths, handle it properly
+            string encryptedRefreshToken = null;
+
+
+            if (!string.IsNullOrEmpty(googleToken.RefreshToken))
+            {
+                encryptedRefreshToken = Encrypt(googleToken.RefreshToken, _encryptionKey);
+                _logger.LogInformation("Refresh token included and encrypted");
+            }
+
+            // Use transaction for data consistency (let any exceptions bubble up)
+            using var transaction = await _context.Database.BeginTransactionAsync();
 
             var existing = await _context.OAuthTokens
-                .FirstOrDefaultAsync(t => t.UserEmail == key);
+                .FirstOrDefaultAsync(t => t.UserEmail == key && t.Provider=="Gmail");
 
             if (existing == null)
             {
@@ -56,20 +95,37 @@ namespace SmartMentorLive.Infrastructure.Persistence.TokenStore
                     UserEmail = key,
                     AccessTokenEncrypted = encryptedAccessToken,
                     RefreshTokenEncrypted = encryptedRefreshToken,
-                    ExpiryDate = googleToken.IssuedUtc.AddSeconds(googleToken.ExpiresInSeconds ?? 3600),
+                    ExpiryDate = expiryDate,
                     CreatedAt = DateTime.UtcNow,
                     LastModifiedDate = DateTime.UtcNow
                 });
+
+               await _context.SaveChangesAsync();
+                _logger.LogInformation("New token record created for {Key}", key);
             }
             else
             {
+                //update existing token
                 existing.AccessTokenEncrypted = encryptedAccessToken;
-                existing.RefreshTokenEncrypted = encryptedRefreshToken;
-                existing.ExpiryDate = googleToken.IssuedUtc.AddSeconds(googleToken.ExpiresInSeconds ?? 3600);
+
+                // Only update refresh token if we have a new one
+                if (!string.IsNullOrEmpty(encryptedRefreshToken))
+                {
+                    existing.RefreshTokenEncrypted = encryptedRefreshToken;
+                    _logger.LogInformation("Refresh token updated");
+
+                }
+                existing.ExpiryDate = expiryDate;
                 existing.LastModifiedDate = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Existing OAuth token updated for: {Key}", key);
+
             }
 
-            await _context.SaveChangesAsync();
+            //commit transaction
+            await transaction.CommitAsync();
+            _logger.LogInformation("✅ Token storage operation completed for key: {Key}", key);
+
         }
 
         public async Task<T?> GetAsync<T>(string key)
@@ -79,17 +135,29 @@ namespace SmartMentorLive.Infrastructure.Persistence.TokenStore
 
             if (token == null) return default;
 
+            _logger.LogInformation("Retrieving token for key: {Key}", key);
+
+            // Decrypt access token (required) - let exceptions bubble up
             var accessToken = Decrypt(token.AccessTokenEncrypted, _encryptionKey);
-            var refreshToken = Decrypt(token.RefreshTokenEncrypted, _encryptionKey);
+
+            //Decrypt refresh token only if exists
+            string refreshToken = null;
+
+            if (!string.IsNullOrEmpty(token.RefreshTokenEncrypted))
+            {
+                refreshToken = Decrypt(token.RefreshTokenEncrypted, _encryptionKey);
+            }
 
             var remaining = (long)(token.ExpiryDate - DateTime.UtcNow).TotalSeconds;
 
+            //calculate issued utc correctly
+            var issuedUtc = token.ExpiryDate.AddSeconds(-(token.ExpiryDate - token.CreatedAt).TotalSeconds);
 
             var tokenResponse = new Google.Apis.Auth.OAuth2.Responses.TokenResponse
             {
                 AccessToken = accessToken,
                 RefreshToken = refreshToken,
-                IssuedUtc = token.ExpiryDate.AddSeconds(-3600), // original issue time
+                IssuedUtc = issuedUtc, // original issue time
                 ExpiresInSeconds = remaining > 0 ? remaining : 0
             };
 
@@ -120,11 +188,13 @@ namespace SmartMentorLive.Infrastructure.Persistence.TokenStore
 
         public static string Encrypt(string plaintext, byte[] key)
         {
-            if (key.Length != 32)
+            if(string.IsNullOrWhiteSpace(plaintext))
+                throw new ArgumentNullException(nameof(plaintext), "Plaintext cannot be null or empty for encryption");
+
+            if (key == null || key.Length != 32)
                 throw new ArgumentException("Key must be 256 bits (32 bytes).", nameof(key));
 
             byte[] plaintextBytes = Encoding.UTF8.GetBytes(plaintext);
-
             // Nonce (aka IV) should be 12 bytes for AES-GCM
             byte[] nonce = RandomNumberGenerator.GetBytes(12);
             byte[] tag = new byte[16];

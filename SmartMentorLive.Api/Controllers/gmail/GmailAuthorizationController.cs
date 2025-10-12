@@ -1,9 +1,12 @@
-﻿using Google.Apis.Auth.OAuth2;
+﻿using System.Threading.Tasks;
+using Google.Apis.Auth.OAuth2;
 using Google.Apis.Auth.OAuth2.Flows;
 using Google.Apis.Util.Store;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
+using SmartMentorLive.Application.Interfaces.Services;
 using SmartMentorLive.Infrastructure.Options;
 
 namespace SmartMentorLive.Api.Controllers.gmail
@@ -12,37 +15,19 @@ namespace SmartMentorLive.Api.Controllers.gmail
     [ApiController]
     public class GmailAuthorizationController : ControllerBase
     {
-        private readonly GmailOptions _options;
-        private readonly IDataStore _tokenStore;
+        private readonly IGoogleAuthService _googleAuthService;
 
-        public GmailAuthorizationController(IOptions<GmailOptions> options, IDataStore tokenStore)
+        public GmailAuthorizationController(IGoogleAuthService googleAuthService)
         {
-            _options = options.Value;
-            _tokenStore = tokenStore;
+            _googleAuthService = googleAuthService;
         }
 
         [HttpGet("authorize")]
-        public IActionResult Authorize()
+        public async Task<IActionResult> Authorize()
         {
-            var secrets = new ClientSecrets
-            {
-                ClientId = _options.ClientId,
-                ClientSecret = _options.ClientSecret,
-            };
-
-            var flow = new GoogleAuthorizationCodeFlow(new GoogleAuthorizationCodeFlow.Initializer
-            {
-                ClientSecrets = secrets,
-                Scopes = new[] { "https://www.googleapis.com/auth/gmail.send" },
-                DataStore = _tokenStore
-            });
-
-            //Genrate a random state (can be any string, ideally stored to validate later)
-            var state = Guid.NewGuid().ToString("N");
-
-            var authUrl = flow.CreateAuthorizationCodeRequest(_options.RedirectUri);
-            authUrl.State = state;
-            return Redirect(authUrl.Build().AbsoluteUri);
+            var authUrl = await _googleAuthService.GenerateAuthorizationUrlAsync();
+            Console.WriteLine(authUrl);
+            return Redirect(authUrl);
         }
 
         [HttpGet("oauth2callback")]
@@ -50,27 +35,10 @@ namespace SmartMentorLive.Api.Controllers.gmail
         {
             if (string.IsNullOrEmpty(code))
                 return BadRequest("Missing authorization code.");
+            if (string.IsNullOrEmpty(state))
+                return BadRequest("Missing OAuth state.");
 
-            var secrets = new ClientSecrets
-            {
-                ClientId = _options.ClientId,
-                ClientSecret = _options.ClientSecret,
-            };
-
-            var flow = new GoogleAuthorizationCodeFlow(new GoogleAuthorizationCodeFlow.Initializer
-            {
-                ClientSecrets = secrets,
-                Scopes = new[] { "https://www.googleapis.com/auth/gmail.send" },
-                DataStore = _tokenStore
-            });
-
-            var token = await flow.ExchangeCodeForTokenAsync(
-                userId: _options.UserEmail,
-                code: code,
-                redirectUri: _options.RedirectUri,
-                taskCancellationToken: CancellationToken.None);
-
-            await _tokenStore.StoreAsync(_options.UserEmail, token);
+            await _googleAuthService.HandleOAuthCallbackAsync(code, state);
             return Ok("Gmail account authorized succesfully. Token saved securely");
         }
     }

@@ -23,7 +23,8 @@ namespace SmartMentorLive.Api.MIddleware
             }
             catch(Exception ex)
             {
-                _logger.LogError("Unhandled Exception : {Message}",ex.Message); 
+                //_logger.LogError("Unhandled Exception : {Message}",ex.Message);
+                _logger.LogError(ex, "Unhandled Exception occurred while processing {Path}", context.Request.Path);
 
                 var problem = MaptoProblemDetail(ex,context);
                 var response = ApiResponse<ProblemDetails>.FailResponse(problem.Title ?? "Error",

@@ -10,7 +10,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using SmartMentorLive.Application.Interfaces.Services;
 using SmartMentorLive.Domain.Entities.Users;
-using SmartMentorLive.Infrastructure.Configuration;
+using SmartMentorLive.Infrastructure.Options;
 
 namespace SmartMentorLive.Infrastructure.Authentication
 {
